@@ -32,6 +32,10 @@ import platform
 # python 2/3 interop
 from six.moves import range
 
+from .api import gp, check, check_unref, PTR
+from .constants import GP_CAPTURE_IMAGE, GP_FILE_TYPE_NORMAL
+from .errors import ShutterError
+
 
 # This is run if gp_camera_init returns -60 (Could not lock the device)
 unmount_cmd = None
@@ -40,108 +44,7 @@ if platform.system() == 'Darwin':
 else:
     unmount_cmd = 'gvfs-mount -s gphoto2'
 
-libgphoto2dll = ctypes.util.find_library('gphoto2')
-gp = ctypes.CDLL(libgphoto2dll)
-gp.gp_context_new.restype = ctypes.POINTER(ctypes.c_char)
 context = gp.gp_context_new()
-
-PTR = ctypes.pointer
-
-#cdef extern from "gphoto2/gphoto2-port-version.h":
-#  ctypedef enum GPVersionVerbosity:
-GP_VERSION_SHORT = 0
-GP_VERSION_VERBOSE = 1
-
-#cdef extern from "gphoto2/gphoto2-abilities-list.h":
-#  ctypedef enum CameraDriverStatus:
-GP_DRIVER_STATUS_PRODUCTION = 0
-GP_DRIVER_STATUS_TESTING = 1
-GP_DRIVER_STATUS_EXPERIMENTAL = 2
-GP_DRIVER_STATUS_DEPRECATED = 3
-
-#  ctypedef enum CameraOperation:
-GP_OPERATION_NONE = 0
-GP_OPERATION_CAPTURE_IMAGE = 1
-GP_OPERATION_CAPTURE_VIDEO = 2
-GP_OPERATION_CAPTURE_AUDIO = 3
-GP_OPERATION_CAPTURE_PREVIEW = 4
-GP_OPERATION_CONFIG = 5
-
-#  ctypedef enum CameraFileOperation:
-GP_FILE_OPERATION_NONE = 0
-GP_FILE_OPERATION_DELETE = 1
-GP_FILE_OPERATION_PREVIEW = 2
-GP_FILE_OPERATION_RAW = 3
-GP_FILE_OPERATION_AUDIO = 4
-GP_FILE_OPERATION_EXIF = 5
-
-#  ctypedef enum CameraEventType:
-GP_EVENT_UNKNOWN = 0
-GP_EVENT_TIMEOUT = 1
-GP_EVENT_FILE_ADDED = 2
-GP_EVENT_FOLDER_ADDED = 3
-GP_EVENT_CAPTURE_COMPLETE = 4
-
-#  ctypedef enum CameraFolderOperation:
-GP_FOLDER_OPERATION_NONE = 0
-GP_FOLDER_OPERATION_DELETE_ALL = 1
-GP_FOLDER_OPERATION_PUT_FILE = 2
-GP_FOLDER_OPERATION_MAKE_DIR = 3
-GP_FOLDER_OPERATION_REMOVE_DIR = 4
-
-#cdef extern from "gphoto2/gphoto2-port-info-list.h":
-#  ctypedef enum GPPortType:
-GP_PORT_NONE = 0
-GP_PORT_SERIAL = 1
-GP_PORT_USB = 2
-
-# gphoto constants
-# Defined in 'gphoto2-port-result.h'
-GP_OK = 0
-# CameraCaptureType enum in 'gphoto2-camera.h'
-GP_CAPTURE_IMAGE = 0
-# CameraFileType enum in 'gphoto2-file.h'
-GP_FILE_TYPE_NORMAL = 1
-
-
-class ShutterError(Exception):
-    def __init__(self, result, message):
-        self.result = result
-        self.message = message
-
-    def __str__(self):
-        return self.message + ' (' + str(self.result) + ')'
-
-
-def gp_library_version(verbose=True):
-    gp.gp_library_version.restype = ctypes.POINTER(ctypes.c_char_p)
-    if not verbose:
-        arr_text = gp.gp_library_version(GP_VERSION_SHORT)
-    else:
-        arr_text = gp.gp_library_version(GP_VERSION_VERBOSE)
-
-    v = ''
-    for s in arr_text:
-        if s is None:
-            break
-        v += '%s\n' % s
-    return v
-
-
-def check(result):
-    if result < 0:
-        gp.gp_result_as_string.restype = ctypes.c_char_p
-        message = gp.gp_result_as_string(result)
-        raise ShutterError(result, message)
-    return result
-
-
-def check_unref(result, camfile):
-    if result != 0:
-        gp.gp_file_unref(camfile.pointer)
-        gp.gp_result_as_string.restype = ctypes.c_char_p
-        message = gp.gp_result_as_string(result)
-        raise ShutterError(result, message)
 
 
 class CameraFilePathStruct(ctypes.Structure):
@@ -185,7 +88,7 @@ class PortInfoStruct(ctypes.Structure):
         ('path', (ctypes.c_char * 64)),
         ('library_filename', (ctypes.c_char * 1024))
     ]
-    
+
 class PortInfoStruct(ctypes.Structure):
     _fields_ = [
         ('type', ctypes.c_int),  # enum is 32 bits on 32 and 64 bit Linux
@@ -201,13 +104,13 @@ class Camera(object):
     The abilities of this type of camera are stored in a CameraAbility object.
     This is a thin ctypes wrapper about libgphoto2 Camera, with a few tweaks.
     """
-    def __init__(self, regex=None):            
+    def __init__(self, regex=None):
         self._ptr = ctypes.c_void_p()
         check(gp.gp_camera_new(PTR(self._ptr)))
         if regex:
             cl = CameraList(autodetect=True)
             for name, path in cl.as_list():
-                m = regex.search(name.lower())
+                m = regex.search(name.decode('utf8').lower())
                 if m:
                     abl = CameraAbilities()
                     al = CameraAbilitiesList()
@@ -251,7 +154,7 @@ class Camera(object):
         txt = CameraTextStruct()
         check(gp.gp_camera_get_summary(self._ptr, PTR(txt), context))
         r = dict()
-        for l in txt.text.split('\n'):
+        for l in txt.text.decode('utf8').split('\n'):
             try:
                 k, v = l.split(':')
             except ValueError:
@@ -268,7 +171,7 @@ class Camera(object):
         """
         txt = CameraTextStruct()
         check(gp.gp_camera_get_about(self._ptr, PTR(txt), context))
-        return txt.text
+        return txt.text.decode('utf8')
 
     @property
     def abilities(self):

@@ -1,0 +1,26 @@
+language: python
+sudo: false
+
+python:
+  - "pypy"
+  - "3.5"
+  - "3.4"
+  - "3.3"
+  - "2.7"
+  - "2.6"
+
+addons:
+  apt:
+    packages:
+    - libgphoto2-dev
+
+before_install:
+  - pip install -U pip
+  - pip install codecov
+
+install: pip install -r requirements/test.txt
+
+script: nosetests --with-coverage --cover-package=shutter --cover-inclusive --cover-branches
+
+after_success:
+  - codecov
