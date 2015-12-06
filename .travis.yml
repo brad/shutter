@@ -1,5 +1,4 @@
 language: python
-sudo: false
 
 python:
   - "pypy"
@@ -9,12 +8,8 @@ python:
   - "2.7"
   - "2.6"
 
-addons:
-  apt:
-    packages:
-    - libgphoto2-2-dev
-
 before_install:
+  - sudo apt-get install libgphoto2-2-dev
   - pip install -U pip
   - pip install codecov
 
