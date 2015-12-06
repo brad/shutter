@@ -12,7 +12,7 @@ python:
 addons:
   apt:
     packages:
-    - libgphoto2-dev
+    - libgphoto2-2-dev
 
 before_install:
   - pip install -U pip
