@@ -11,7 +11,7 @@ python:
 
 before_install:
   - sudo apt-get update -qq
-  - sudo apt-get install -y pypy-dev python-dev
+  - sudo apt-get install -y libi2c-dev i2c-tools pypy-dev python-dev
   - wget https://raw.githubusercontent.com/gonzalo/gphoto2-updater/c17e39a99a603049239898dda3f3c9e247eb03a8/gphoto2-updater.sh
   - chmod +x gphoto2-updater.sh
   - echo 2 | sudo ./gphoto2-updater.sh
