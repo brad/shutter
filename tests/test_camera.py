@@ -55,7 +55,7 @@ class TestCamera(unittest.TestCase):
         eq_(mock_init.call_count, 2)
         eq_(mock_lookup.call_count, 1)
         pointer_arg = mock_lookup.call_args[0][0]
-        mock_lookup.assert_called_once_with(pointer_arg, 'Canon Camera')
+        mock_lookup.assert_called_once_with(pointer_arg, b'Canon Camera')
         eq_(mock_value.call_count, 2)
         eq_(mock_name.call_count, 2)
         for i in range(2):
