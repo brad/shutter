@@ -24,6 +24,9 @@ class TestAPI(unittest.TestCase):
         with patch('shutter.api.gp.gp_library_version') as mock_version:
             mock_version.return_value = []
             eq_(gp_library_version(), '')
+            mock_version.assert_called_once_with(GP_VERSION_SHORT)
+
+        with patch('shutter.api.gp.gp_library_version') as mock_version:
+            mock_version.return_value = []
             eq_(gp_library_version(verbose=False), '')
-            mock_version.assert_any_call(GP_VERSION_SHORT)
-            mock_version.assert_any_call(GP_VERSION_VERBOSE)
+            mock_version.assert_called_once_with(GP_VERSION_VERBOSE)
